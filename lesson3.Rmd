@@ -1,0 +1,193 @@
+---
+title: "Lesson 3"
+author: "Nicholas Potter"
+date: "05/10/2014"
+output: html_document
+---
+
+#Exploring a single variable
+
+Loading up the pseudo facebook data
+
+```{r}
+getwd()
+setwd('/home/potterzot/code/learning/exploratorydataanalysis/')
+fbook = read.csv('data/pseudo_facebook.tsv', sep = '\t')
+```
+
+Look at the names of the variables in the dataset:
+
+```{r}
+names(fbook)
+```
+
+
+```{r}
+library(ggplot2)
+```
+
+###Histograms
+We scale the days of the month so that each day is shown. You can see that the first day of the month is kind of an outlier, suggesting that many people select the 1st instead of their actual birthday.
+
+```{r}
+qplot(data=fbook, x=dob_day) +
+  scale_x_discrete(breaks=1:31)
+```
+
+Now we are going to add a **facet**. A facet is the same graph split along a dimension. In this case, we can do days of the month faceted by months:
+
+```{r}
+qplot(data=fbook, x=dob_day) +
+  scale_x_discrete(breaks=1:31) +
+  facet_wrap(~dob_month, ncol=3)
+```
+
+And we can see that most of the 1st dobs are also in January, for people who didn't select the month either.
+
+`facet_wrap()` takes a formula, which is often something like `~variable`. If you want to facet over two or more variables, you can use `facet_grid()`, which takes a formula as well, and looks like `facet_grid(vertical ~ horizontal)`.
+
+**Histogram of Friend Count**
+```{r}
+qplot(data=fbook, x=friend_count, binwidth=20)
+```
+
+**Histogram of friend count by gender**
+Here we subset the data to remove 'NA' using `!is.na(gender)` as the filter. But another way to do the same thing would be to use `na.omit(fbook)`, which would remove all rows of data with 'na' values.
+
+Here also we use `color` and `fill` options to change the colors of the plot.
+
+```{r}
+qplot(data=subset(fbook, !is.na(gender)), x=friend_count
+      , color=I('blue'), fill=I('#98e63d'), binwidth=20) +
+  scale_x_continuous(lim=c(0,1000), breaks= seq(0,1000,50)) +
+  facet_wrap(~gender)
+```
+
+**Data by groups**
+```{r}
+by(fbook$friend_count, fbook$gender, summary)
+```
+
+**Tenure - messing with bin size, color, labels**
+```{r}
+qplot(data=fbook, x=tenure/365, binwidth=.25,
+      xlab = 'Years of Tenure',
+      ylab = 'Frequency',
+      color=I('black'), fill=I('orange')) +
+  scale_x_continuous(lim=c(0,7), breaks=seq(0,7,1))
+```
+
+**User ages**
+```{r}
+qplot(data=subset(fbook, !is.na(gender)), x=age, binwidth=1,
+      xlab = "Age (Years)",
+      ylab = "Years",
+      color=I('black'), fill=I('orange')) +
+  scale_x_continuous(lim=c(13,110), breaks=seq(13,110,10)) +
+  facet_wrap(~gender)
+
+```
+
+**Data with long tails**
+Often our data has a long tail, and we want to be able to regress on a normal distribution, so it can help to transform the data using `log`, `ln`, or some exponential function.
+
+```{r}
+summary(log10(fbook$friend_count+1))
+summary(log(fbook$friend_count+1))
+summary(sqrt(fbook$friend_count+1))
+```
+
+To plot multiple functions in one graphic we can use `gridExtra`
+```{r}
+library('gridExtra')
+p1 = ggplot(data=fbook, aes(x=friend_count)) + geom_histogram()
+p2 = ggplot(data=fbook, aes(x=log10(friend_count+1))) + geom_histogram()
+p3 = ggplot(data=fbook, aes(x=log(friend_count+1))) + geom_histogram()
+p4 = ggplot(data=fbook, aes(x=sqrt(friend_count))) + geom_histogram()
+grid.arrange(p1, p2, p3, p4, ncol=2)
+```
+
+Alternatively, we can just change the x scale, which as the added benefit of scaling the x-axis to represent the actual x values instead of the scaled x values:
+
+```{r}
+s1 = ggplot(data=fbook, aes(x=friend_count)) + geom_histogram()
+s2 = s1 + scale_x_log10()
+grid.arrange(s1, s2, ncol=2)
+```
+
+Sometimes you'd rather plot multiple facets on the same graph using a frequency plot
+
+```{r}
+ggplot(data=subset(fbook, !is.na(gender)), 
+      aes(x=friend_count, y=..count../sum(..count..))) +
+  geom_freqpoly(aes(color=gender)) +
+  scale_x_continuous(lim=c(350,800), breaks=seq(0,1000,50)) +
+  xlab("Number of Friends") +
+  ylab("Frequency of users")
+```
+
+Some summary data on www_likes by gender
+```{r}
+by(fbook$www_likes, fbook$gender, sum)
+```
+
+**Box Plots**
+Box plots are fun, and measure the interquartile range, median, etc... Outliers are generally considered > 1.5 X IQR and are represented by `*`
+
+```{r}
+ggplot(data=subset(fbook, !is.na(gender)),
+       aes(x=gender, y=friend_count+1)) +
+  geom_boxplot() +
+  scale_y_log10() +
+  xlab("Gender") +
+  ylab("Number of Friends")
+```
+
+Instead of scaling our data, we can adjust the limits of the box plot as follows. This keeps the scale the same and does not affect the upper 25% range in the same way that removing any values above 1000 would. Instead, those values are still included in the calculation but are not shown.
+
+```{r}
+ggplot(data=subset(fbook, !is.na(gender)),
+       aes(x=gender, y=friend_count)) +
+  geom_boxplot() +
+  coord_cartesian(ylim=c(0,250))
+  xlab("Gender") +
+  ylab("Number of Friends")
+```
+
+**Who Initiated More Friendships?**
+
+Our intuition would suggest that men innitiate more friendships than women, but we can check that by looking at a similar box plot for `friendships_initiated`.
+
+```{r}
+ggplot(data=subset(fbook, !is.na(gender)),
+       aes(x=gender, y=friendships_initiated)) +
+  geom_boxplot() +
+  xlab("Gender") +
+  ylab("Friendships Initiated") +
+  coord_cartesian(ylim=c(0,150))
+```
+
+This box plot shows that on average women inititate more frienships than men. However, we don't know whether men or women overall initiate more friendships. The actual values are:
+```{r}
+by(fbook$friendships_initiated, fbook$gender, summary)
+by(fbook$friendships_initiated, fbook$gender, sum)
+```
+
+From which we can see that while the average woman initiates more friendships, men initiate more frienships overall. SO there must be some men who initiate many more friendships than the average man.
+
+**Logical Variables**
+
+We can create binary variables by using logical statements: `summary(fbook$friend_count>0)`. To create a variable, first we assign it `NA`. Then we use a logical operation, then converting to a factor variable.
+
+```{r}
+fbook$mobile_check_in = NA
+fbook$mobile_check_in = ifelse(fbook$mobile_likes>0,1,0)
+fbook$mobile_check_in = factor(fbook$mobile_check_in)
+summary(fbook$mobile_check_in)
+```
+
+So the percentage of users who use mobile facebook is 64.59.
+
+
+
+

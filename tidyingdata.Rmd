@@ -1,0 +1,67 @@
+---
+title: "Exploratory Data Analysis"
+author: "Nicholas Potter"
+date: "05/10/2014"
+output: html_document
+---
+
+#Creating Tidy Data
+
+There are 5 common problems with untidy datasets:
+
+##Column headers are values, not variable names
+A typical example is data that includes counts in each category, with one category as rows and one as columns. For example, religion as rows and income level as columns. While useful as a table for visual analysis, this is difficult to analyze. This can be solved by **melting** (From the library **reshape2** using `melt()`), converting the columns to rows, so that we have 3 columns in the resulting dataset: religion, income level, and frequency (or count). The resulting dataset is called molten.
+
+Often a non-molten dataset can be simpler in terms of data entry because you don’t have to repeat some of the columns, but it is more difficult for analysis.
+
+##Multiple variables are stored in one column
+Sometimes counts of variables can be stored with multiple variables in one column. This error can be fixed by using string parsing to separate the columns into multiple columns with better counts. For example, the TB dataset has counts of confirmed diagnosis in columns with names like “m5564”, which includes both sex and age. These should be split into males and age separately, with number of cases as a separate variable.
+
+The library to use is **stringr**, which includes `str_replace()`, `str_sub()`, and `str_split_fixed()`.
+
+##Variables are stored in both rows and columns
+Rows may contain variables, for example temperatures stored for each day, with tmin and tmax each having it’s own row and temperature stored as ‘value’. To fix this error, the tmin and tmax can be changed to columns, with the value of the temperature stored in tmin and tmax. **plyr** is the library to use, which provides `arrange()`, as well as `join()`.
+
+`dcase()` shifts variables from rows to columns.
+
+##Multiple types of observational units are stored in the same table
+Tables can contain data on multiple types of observations. Weekly song rankings for example include two types of data: the data on the song and the data on the song ranking. These data should be separated into two tables, one that is a list of songs with an id, and one that contains the song id and it’s ranking. 
+
+##A single observational unit is stored in multiple tables
+The flip side of the previous issue is one type of data stored across multiple tables. The fix is relatively simple:
+* read the files into a list of tables
+* for each table, add a column name that is the name of the table/file
+* combine all of the tables into a single table
+
+This can be done with the package **plyr**, which automates the process somewhat:
+
+```
+paths <- dir("data", pattern = "\\.csv$", full.names = TRUE)
+names(paths) <- basename(paths)
+ldply(paths, read.csv, stringsAsFactors = FALSE)
+```
+#Working with Tidy Data
+
+##Manipulation
+Manipulation comes in 4 types:
+* Filter: subsetting or removing data based on some condition: `subset()`
+* Transform: adding or modifying variables, often by some mathematical translation (e.g. log(x)): `transform()`
+* Aggregate: Collapsing multiple values into a single value (e.g. by summing and taking means): `aggregate()`, `summarise()`, `arrange()`
+* Sort: Changing the order of observations
+
+`by()` in R allows group-wise processing, but it is not output-tidy. `ddply()` is an output-tidy alternative. For joining/merging data, ***R*** includes `merge()`, and **plyr** includes `join()`
+
+##Visualization
+Most visualization functions take input-tidy data, and we don't need to worry about output-tidy. Plots from **ggplot2**.
+
+##Modelling
+
+
+
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
